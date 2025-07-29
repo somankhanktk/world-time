@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Neon World Time Buddy 🌐</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: 'Orbitron', sans-serif;
+      background: #000;
+      color: #00f9ff;
+      overflow-x: hidden;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .search-wrapper {
+      position: relative;
+      min-width: 250px;
+    }
+
+    #searchInput {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: none;
+      background: #111;
+      color: #0ff;
+      font-size: 1rem;
+      box-shadow: 0 0 8px #0ff;
+    }
+
+    .dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #000;
+      border: 1px solid #0ff;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 10;
+      box-shadow: 0 0 10px #0ff;
+      display: none;
+    }
+
+    .dropdown div {
+      padding: 0.5rem;
+      cursor: pointer;
+      border-bottom: 1px solid #0ff;
+    }
+
+    .dropdown div:hover {
+      background: #0ff;
+      color: #000;
+    }
+
+    button {
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: #111;
+      color: #0ff;
+      border: 1px solid #0ff;
+      box-shadow: 0 0 8px #0ff;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background: #0ff;
+      color: #000;
+    }
+
+    .clocks {
+      margin-top: 3rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      padding: 0 1rem;
+    }
+
+    .clock {
+      background: rgba(0, 255, 255, 0.05);
+      border: 1px solid #0ff;
+      box-shadow: 0 0 20px #0ff;
+      padding: 1.5rem;
+      border-radius: 16px;
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+
+    .clock:hover {
+      transform: scale(1.05);
+    }
+
+    .city {
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+      color: #0ff;
+      text-shadow: 0 0 5px #0ff;
+    }
+
+    .time {
+      font-size: 2rem;
+      font-weight: bold;
+      text-shadow: 0 0 8px #0ff;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.8rem;
+      }
+
+      .controls {
+        flex-direction: column;
+      }
+
+      #searchInput, button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="globeCanvas"></canvas>
+
+  <div class="content">
+    <h1>🌐 Neon World Time Buddy</h1>
+
+    <div class="controls">
+      <div class="search-wrapper">
+        <input type="text" id="searchInput" placeholder="Search country..." />
+        <div id="searchResults" class="dropdown"></div>
+      </div>
+      <button onclick="addSelectedClock()">Add Clock</button>
+      <button onclick="addAllCountries()">Add All Countries</button>
+    </div>
+
+    <div class="clocks" id="clockContainer"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
+  <script>
+    const countryTimeZones = {
+      "Afghanistan":"Asia/Kabul","Albania":"Europe/Tirane","Algeria":"Africa/Algiers",
+      "Andorra":"Europe/Andorra","Angola":"Africa/Luanda","Argentina":"America/Argentina/Buenos_Aires",
+      "Armenia":"Asia/Yerevan","Australia":"Australia/Sydney","Austria":"Europe/Vienna",
+      "Azerbaijan":"Asia/Baku","Bahamas":"America/Nassau","Bahrain":"Asia/Bahrain",
+      "Bangladesh":"Asia/Dhaka","Belarus":"Europe/Minsk","Belgium":"Europe/Brussels",
+      "Belize":"America/Belize","Benin":"Africa/Porto-Novo","Bhutan":"Asia/Thimphu",
+      "Bolivia":"America/La_Paz","Bosnia and Herzegovina":"Europe/Sarajevo","Botswana":"Africa/Gaborone",
+      "Brazil":"America/Sao_Paulo","Brunei":"Asia/Brunei","Bulgaria":"Europe/Sofia",
+      "Burkina Faso":"Africa/Ouagadougou","Burundi":"Africa/Bujumbura","Cambodia":"Asia/Phnom_Penh",
+      "Cameroon":"Africa/Douala","Canada":"America/Toronto","Chile":"America/Santiago",
+      "China":"Asia/Shanghai","Colombia":"America/Bogota","Croatia":"Europe/Zagreb",
+      "Cuba":"America/Havana","Cyprus":"Asia/Nicosia","Czech Republic":"Europe/Prague",
+      "Denmark":"Europe/Copenhagen","Dominican Republic":"America/Santo_Domingo",
+      "Ecuador":"America/Guayaquil","Egypt":"Africa/Cairo","El Salvador":"America/El_Salvador",
+      "Estonia":"Europe/Tallinn","Ethiopia":"Africa/Addis_Ababa","Fiji":"Pacific/Fiji",
+      "Finland":"Europe/Helsinki","France":"Europe/Paris","Gabon":"Africa/Libreville",
+      "Georgia":"Asia/Tbilisi","Germany":"Europe/Berlin","Ghana":"Africa/Accra",
+      "Greece":"Europe/Athens","Guatemala":"America/Guatemala","Honduras":"America/Tegucigalpa",
+      "Hungary":"Europe/Budapest","Iceland":"Atlantic/Reykjavik","India":"Asia/Kolkata",
+      "Indonesia":"Asia/Jakarta","Iran":"Asia/Tehran","Iraq":"Asia/Baghdad","Ireland":"Europe/Dublin",
+      "Israel":"Asia/Jerusalem","Italy":"Europe/Rome","Jamaica":"America/Jamaica","Japan":"Asia/Tokyo",
+      "Jordan":"Asia/Amman","Kazakhstan":"Asia/Almaty","Kenya":"Africa/Nairobi","Kuwait":"Asia/Kuwait",
+      "Kyrgyzstan":"Asia/Bishkek","Laos":"Asia/Vientiane","Latvia":"Europe/Riga",
+      "Lebanon":"Asia/Beirut","Liberia":"Africa/Monrovia","Libya":"Africa/Tripoli",
+      "Lithuania":"Europe/Vilnius","Luxembourg":"Europe/Luxembourg","Malaysia":"Asia/Kuala_Lumpur",
+      "Maldives":"Indian/Maldives","Mali":"Africa/Bamako","Malta":"Europe/Malta",
+      "Mexico":"America/Mexico_City","Monaco":"Europe/Monaco","Mongolia":"Asia/Ulaanbaatar",
+      "Montenegro":"Europe/Podgorica","Morocco":"Africa/Casablanca","Myanmar":"Asia/Yangon",
+      "Namibia":"Africa/Windhoek","Nepal":"Asia/Kathmandu","Netherlands":"Europe/Amsterdam",
+      "New Zealand":"Pacific/Auckland","Nicaragua":"America/Managua","Niger":"Africa/Niamey",
+      "Nigeria":"Africa/Lagos","North Korea":"Asia/Pyongyang","Norway":"Europe/Oslo",
+      "Oman":"Asia/Muscat","Pakistan":"Asia/Karachi","Panama":"America/Panama","Paraguay":"America/Asuncion",
+      "Peru":"America/Lima","Philippines":"Asia/Manila","Poland":"Europe/Warsaw","Portugal":"Europe/Lisbon",
+      "Qatar":"Asia/Qatar","Romania":"Europe/Bucharest","Russia":"Europe/Moscow",
+      "Saudi Arabia":"Asia/Riyadh","Senegal":"Africa/Dakar","Serbia":"Europe/Belgrade",
+      "Singapore":"Asia/Singapore","Slovakia":"Europe/Bratislava","Slovenia":"Europe/Ljubljana",
+      "South Africa":"Africa/Johannesburg","South Korea":"Asia/Seoul","Spain":"Europe/Madrid",
+      "Sri Lanka":"Asia/Colombo","Sudan":"Africa/Khartoum","Sweden":"Europe/Stockholm",
+      "Switzerland":"Europe/Zurich","Syria":"Asia/Damascus","Taiwan":"Asia/Taipei",
+      "Tajikistan":"Asia/Dushanbe","Tanzania":"Africa/Dar_es_Salaam","Thailand":"Asia/Bangkok",
+      "Tunisia":"Africa/Tunis","Turkey":"Europe/Istanbul","Uganda":"Africa/Kampala",
+      "Ukraine":"Europe/Kyiv","United Arab Emirates":"Asia/Dubai","United Kingdom":"Europe/London",
+      "United States":"America/New_York","Uruguay":"America/Montevideo","Uzbekistan":"Asia/Tashkent",
+      "Venezuela":"America/Caracas","Vietnam":"Asia/Ho_Chi_Minh","Yemen":"Asia/Aden",
+      "Zambia":"Africa/Lusaka","Zimbabwe":"Africa/Harare"
+    };
+
+    const countryNames = Object.keys(countryTimeZones);
+    const searchInput = document.getElementById("searchInput");
+    const searchResults = document.getElementById("searchResults");
+    const clockContainer = document.getElementById("clockContainer");
+    let clocks = [];
+    let selectedZone = '';
+
+    searchInput.addEventListener("input", () => {
+      const term = searchInput.value.toLowerCase();
+      searchResults.innerHTML = '';
+      if (!term) {
+        searchResults.style.display = 'none';
+        return;
+      }
+
+      const filtered = countryNames.filter(country => country.toLowerCase().includes(term));
+      filtered.slice(0, 20).forEach(country => {
+        const div = document.createElement('div');
+        div.textContent = country;
+        div.onclick = () => {
+          selectedZone = countryTimeZones[country];
+          searchInput.value = country;
+          searchResults.style.display = 'none';
+        };
+        searchResults.appendChild(div);
+      });
+
+      searchResults.style.display = filtered.length ? 'block' : 'none';
+    });
+
+    function addSelectedClock() {
+      if (!selectedZone) {
+        alert("Please select a country first.");
+        return;
+      }
+
+      if (clocks.find(c => c.timeZone === selectedZone)) {
+        alert("This timezone is already added!");
+        return;
+      }
+
+      const index = clocks.length;
+      const clockDiv = document.createElement('div');
+      clockDiv.className = 'clock';
+      clockDiv.innerHTML = `
+        <div class="city">${selectedZone.replace(/_/g, ' ')}</div>
+        <div class="time" id="time-${index}">--:--:--</div>
+      `;
+      clockContainer.appendChild(clockDiv);
+
+      clocks.push({ timeZone: selectedZone, elementId: `time-${index}` });
+      selectedZone = '';
+      searchInput.value = '';
+    }
+
+    function addAllCountries() {
+      if (!confirm("This will add one timezone per country. Continue?")) return;
+
+      countryNames.forEach((country) => {
+        const tz = countryTimeZones[country];
+        if (clocks.find(c => c.timeZone === tz)) return;
+
+        const index = clocks.length;
+        const clockDiv = document.createElement('div');
+        clockDiv.className = 'clock';
+        clockDiv.innerHTML = `
+          <div class="city">${country}</div>
+          <div class="time" id="time-${index}">--:--:--</div>
+        `;
+        clockContainer.appendChild(clockDiv);
+
+        clocks.push({ timeZone: tz, elementId: `time-${index}` });
+      });
+    }
+
+    function updateClocks() {
+      const now = new Date();
+      clocks.forEach(clock => {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: clock.timeZone,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        });
+        const timeStr = formatter.format(now);
+        document.getElementById(clock.elementId).textContent = timeStr;
+      });
+    }
+
+    setInterval(updateClocks, 1000);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 2.5;
+
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("globeCanvas"), alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    const geometry = new THREE.SphereGeometry(1, 64, 64);
+    const texture = new THREE.TextureLoader().load('https://raw.githubusercontent.com/creativetimofficial/public-assets/master/soft-ui-dashboard/assets/img/earth-night.jpg');
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      emissive: 0x00ffff,
+      emissiveIntensity: 0.4
+    });
+
+    const globe = new THREE.Mesh(geometry, material);
+    scene.add(globe);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      globe.rotation.y += 0.0015;
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener("resize", () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+  </script>
+</body>
+</html>
